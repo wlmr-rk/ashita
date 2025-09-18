@@ -15,45 +15,116 @@
 	let editIsHabit = $state(false);
 	let editDueDate = $state("");
 
-	// Swipe state
+	// Optimistic updates state
+	let optimisticTodos = $state<any[]>([]);
+	let nextOptimisticId = $state(-1); // Use negative IDs for optimistic items
+
+	// Swipe state with animation
 	let swipeStartX = $state(0);
 	let swipeStartY = $state(0);
 	let swipeCurrentX = $state(0);
 	let swipeItemId = $state<number | null>(null);
 	let isSwipeActive = $state(false);
+	let swipeOffset = $state(0);
+	let swipeDirection = $state<"left" | "right" | null>(null);
 
 	async function handleAddTodo() {
 		if (!newTodoText.trim()) return;
 
-		try {
-			await addTodo({
-				text: newTodoText.trim(),
-				isHabit: newTodoIsHabit,
-				dueDate: newTodoDueDate || undefined,
-			}).updates(todosQuery);
+		// Create optimistic todo immediately
+		const optimisticTodo = {
+			id: nextOptimisticId--,
+			text: newTodoText.trim(),
+			completed: false,
+			isHabit: newTodoIsHabit,
+			dueDate: newTodoDueDate ? new Date(newTodoDueDate) : null,
+			createdAt: new Date(),
+			isOptimistic: true,
+		};
 
-			// Reset form
-			newTodoText = "";
-			newTodoIsHabit = false;
-			newTodoDueDate = "";
+		// Add to optimistic state immediately
+		optimisticTodos = [optimisticTodo, ...optimisticTodos];
+
+		// Store form values for potential rollback
+		const formData = {
+			text: newTodoText.trim(),
+			isHabit: newTodoIsHabit,
+			dueDate: newTodoDueDate || undefined,
+		};
+
+		// Reset form immediately for better UX
+		newTodoText = "";
+		newTodoIsHabit = false;
+		newTodoDueDate = "";
+
+		try {
+			// Send to server in background
+			await addTodo(formData).updates(todosQuery);
+
+			// Remove optimistic item once server responds
+			optimisticTodos = optimisticTodos.filter(
+				(t) => t.id !== optimisticTodo.id,
+			);
 		} catch (error) {
 			console.error("Failed to add todo:", error);
+
+			// Rollback optimistic update on error
+			optimisticTodos = optimisticTodos.filter(
+				(t) => t.id !== optimisticTodo.id,
+			);
+
+			// Restore form data
+			newTodoText = formData.text;
+			newTodoIsHabit = formData.isHabit;
+			newTodoDueDate = formData.dueDate || "";
 		}
 	}
 
 	async function handleToggleTodo(id: number, completed: boolean) {
+		// Optimistic update - toggle immediately
+		const newCompleted = !completed;
+
+		// Update optimistic state if it's an optimistic todo
+		if (id < 0) {
+			optimisticTodos = optimisticTodos.map((t) =>
+				t.id === id ? { ...t, completed: newCompleted } : t,
+			);
+			return; // Don't send to server for optimistic items
+		}
+
+		// For real todos, use optimistic update with server sync
 		try {
-			await updateTodo({ id, completed: !completed }).updates(todosQuery);
+			await updateTodo({ id, completed: newCompleted }).updates(
+				todosQuery.withOverride((todos) =>
+					todos.map((t) =>
+						t.id === id ? { ...t, completed: newCompleted } : t,
+					),
+				),
+			);
 		} catch (error) {
 			console.error("Failed to toggle todo:", error);
+			// The override will automatically revert on error
 		}
 	}
 
 	async function handleDeleteTodo(id: number) {
+		// Optimistic delete - remove immediately
+		if (id < 0) {
+			// Remove from optimistic state
+			optimisticTodos = optimisticTodos.filter((t) => t.id !== id);
+			return; // Don't send to server for optimistic items
+		}
+
+		// For real todos, use optimistic delete with server sync
 		try {
-			await deleteTodo(id).updates(todosQuery);
+			await deleteTodo(id).updates(
+				todosQuery.withOverride((todos) =>
+					todos.filter((t) => t.id !== id),
+				),
+			);
 		} catch (error) {
 			console.error("Failed to delete todo:", error);
+			// The override will automatically revert on error
 		}
 	}
 
@@ -76,17 +147,38 @@
 	async function saveEdit() {
 		if (!editText.trim() || editingId === null) return;
 
+		const updates = {
+			text: editText.trim(),
+			isHabit: editIsHabit,
+			dueDate: editDueDate || null,
+		};
+
+		// Handle optimistic todos
+		if (editingId < 0) {
+			optimisticTodos = optimisticTodos.map((t) =>
+				t.id === editingId ? { ...t, ...updates } : t,
+			);
+			cancelEditing();
+			return;
+		}
+
+		// For real todos, use optimistic update
 		try {
 			await updateTodo({
 				id: editingId,
-				text: editText.trim(),
-				isHabit: editIsHabit,
-				dueDate: editDueDate || null,
-			}).updates(todosQuery);
+				...updates,
+			}).updates(
+				todosQuery.withOverride((todos) =>
+					todos.map((t) =>
+						t.id === editingId ? { ...t, ...updates } : t,
+					),
+				),
+			);
 
 			cancelEditing();
 		} catch (error) {
 			console.error("Failed to update todo:", error);
+			// Keep edit mode open on error so user can retry
 		}
 	}
 
@@ -104,7 +196,7 @@
 		}
 	}
 
-	// Improved swipe gesture handlers for mobile
+	// Improved swipe gesture handlers with animations
 	function handleTouchStart(event: TouchEvent, todoId: number) {
 		// Prevent default to avoid conflicts with browser gestures
 		event.preventDefault();
@@ -115,6 +207,8 @@
 		swipeCurrentX = touch.clientX;
 		swipeItemId = todoId;
 		isSwipeActive = true;
+		swipeOffset = 0;
+		swipeDirection = null;
 	}
 
 	function handleTouchMove(event: TouchEvent) {
@@ -132,6 +226,14 @@
 
 		swipeCurrentX = touch.clientX;
 
+		// Update swipe offset for animation (limit to reasonable range)
+		swipeOffset = Math.max(-120, Math.min(120, deltaX));
+
+		// Determine swipe direction for visual feedback
+		if (Math.abs(deltaX) > 10) {
+			swipeDirection = deltaX < 0 ? "left" : "right";
+		}
+
 		// Prevent scrolling during horizontal swipe
 		if (Math.abs(deltaX) > 20) {
 			event.preventDefault();
@@ -146,15 +248,40 @@
 
 		if (Math.abs(deltaX) > threshold) {
 			if (deltaX < 0) {
-				// Swipe left - Edit
-				startEditing(todo);
+				// Swipe left - Edit (animate out then edit)
+				animateSwipeComplete("left", () => startEditing(todo));
 			} else {
-				// Swipe right - Delete
-				handleDeleteTodo(todo.id);
+				// Swipe right - Delete (animate out then delete)
+				animateSwipeComplete("right", () => handleDeleteTodo(todo.id));
 			}
+		} else {
+			// Snap back to original position
+			animateSwipeReset();
 		}
+	}
 
-		resetSwipe();
+	function animateSwipeComplete(
+		direction: "left" | "right",
+		callback: () => void,
+	) {
+		// Animate to full swipe
+		swipeOffset = direction === "left" ? -200 : 200;
+
+		// Execute callback after animation
+		setTimeout(() => {
+			callback();
+			resetSwipe();
+		}, 200);
+	}
+
+	function animateSwipeReset() {
+		// Animate back to center
+		swipeOffset = 0;
+
+		// Reset after animation
+		setTimeout(() => {
+			resetSwipe();
+		}, 200);
 	}
 
 	function resetSwipe() {
@@ -163,6 +290,32 @@
 		swipeStartX = 0;
 		swipeStartY = 0;
 		swipeCurrentX = 0;
+		swipeOffset = 0;
+		swipeDirection = null;
+	}
+
+	// Get swipe transform for current item
+	function getSwipeTransform(todoId: number) {
+		if (swipeItemId === todoId && isSwipeActive) {
+			return `translateX(${swipeOffset}px)`;
+		}
+		return "translateX(0px)";
+	}
+
+	// Get swipe background color based on direction
+	function getSwipeBackground(todoId: number) {
+		if (swipeItemId !== todoId || !isSwipeActive) return "";
+
+		if (swipeDirection === "left") {
+			// Edit - blue background
+			const opacity = Math.min(Math.abs(swipeOffset) / 100, 0.3);
+			return `rgba(59, 130, 246, ${opacity})`;
+		} else if (swipeDirection === "right") {
+			// Delete - red background
+			const opacity = Math.min(Math.abs(swipeOffset) / 100, 0.3);
+			return `rgba(239, 68, 68, ${opacity})`;
+		}
+		return "";
 	}
 
 	function formatDueDate(dateStr: string | Date | null) {
@@ -187,12 +340,13 @@
 
 	const todosQuery = getTodos();
 
-	// Sort todos: incomplete first (by creation date desc), then completed (by creation date desc)
+	// Sort todos: include optimistic items + server items, incomplete first
 	const sortedTodos = $derived(() => {
-		if (!todosQuery.current) return [];
+		const serverTodos = todosQuery.current || [];
+		const allTodos = [...optimisticTodos, ...serverTodos];
 
-		const incomplete = todosQuery.current.filter((t) => !t.completed);
-		const completed = todosQuery.current.filter((t) => t.completed);
+		const incomplete = allTodos.filter((t) => !t.completed);
+		const completed = allTodos.filter((t) => t.completed);
 
 		// Sort both groups by creation date (newest first)
 		incomplete.sort(
@@ -209,13 +363,22 @@
 		return [...incomplete, ...completed];
 	});
 
-	const completedCount = $derived(
-		todosQuery.current?.filter((t) => t.completed).length || 0,
-	);
-	const habitCount = $derived(
-		todosQuery.current?.filter((t) => t.isHabit && !t.completed).length ||
-			0,
-	);
+	const completedCount = $derived(() => {
+		const serverTodos = todosQuery.current || [];
+		const allTodos = [...optimisticTodos, ...serverTodos];
+		return allTodos.filter((t) => t.completed).length;
+	});
+
+	const habitCount = $derived(() => {
+		const serverTodos = todosQuery.current || [];
+		const allTodos = [...optimisticTodos, ...serverTodos];
+		return allTodos.filter((t) => t.isHabit && !t.completed).length;
+	});
+
+	const totalCount = $derived(() => {
+		const serverTodos = todosQuery.current || [];
+		return optimisticTodos.length + serverTodos.length;
+	});
 </script>
 
 <main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif">
@@ -292,16 +455,68 @@
 			{:else}
 				{#each sortedTodos() as todo (todo.id)}
 					<article
-						class="relative overflow-hidden border-b border-neutral-900 transition-all duration-200 touch-manipulation"
+						class="relative overflow-hidden border-b border-neutral-900 touch-manipulation"
 						class:opacity-60={todo.completed}
+						class:opacity-80={todo.isOptimistic}
 						ontouchstart={(e) => handleTouchStart(e, todo.id)}
 						ontouchmove={(e) => handleTouchMove(e)}
 						ontouchend={(e) => handleTouchEnd(e, todo)}
-						style="touch-action: pan-y;"
+						style="touch-action: pan-y; background-color: {getSwipeBackground(
+							todo.id,
+						)}; transition: {isSwipeActive &&
+						swipeItemId === todo.id
+							? 'none'
+							: 'all 0.2s ease-out'};"
 					>
+						<!-- Swipe Action Indicators -->
+						{#if isSwipeActive && swipeItemId === todo.id}
+							<!-- Left swipe indicator (Edit) -->
+							{#if swipeDirection === "left"}
+								<div
+									class="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-400 text-xs opacity-70"
+								>
+									<svg
+										class="w-4 h-4"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path
+											d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"
+										/>
+									</svg>
+								</div>
+							{/if}
+
+							<!-- Right swipe indicator (Delete) -->
+							{#if swipeDirection === "right"}
+								<div
+									class="absolute left-4 top-1/2 transform -translate-y-1/2 text-red-400 text-xs opacity-70"
+								>
+									<svg
+										class="w-4 h-4"
+										fill="currentColor"
+										viewBox="0 0 20 20"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+											clip-rule="evenodd"
+										/>
+									</svg>
+								</div>
+							{/if}
+						{/if}
 						{#if editingId === todo.id}
 							<!-- Edit Mode -->
-							<div class="p-4 bg-neutral-900">
+							<div
+								class="p-4 bg-neutral-900"
+								style="transform: {getSwipeTransform(
+									todo.id,
+								)}; transition: {isSwipeActive &&
+								swipeItemId === todo.id
+									? 'none'
+									: 'transform 0.2s ease-out'};"
+							>
 								<input
 									bind:value={editText}
 									onkeydown={handleEditKeydown}
@@ -356,6 +571,12 @@
 								class="w-full p-4 text-left active:bg-neutral-900 transition-colors duration-150"
 								onclick={() =>
 									handleToggleTodo(todo.id, todo.completed)}
+								style="transform: {getSwipeTransform(
+									todo.id,
+								)}; transition: {isSwipeActive &&
+								swipeItemId === todo.id
+									? 'none'
+									: 'transform 0.2s ease-out'};"
 							>
 								<div class="flex items-start justify-between">
 									<div class="flex-1 min-w-0">
@@ -411,10 +632,10 @@
 		</section>
 
 		<!-- Footer Stats -->
-		{#if todosQuery.current && todosQuery.current.length > 0}
+		{#if totalCount > 0}
 			<footer class="mt-8 pt-4 border-t border-neutral-900 text-center">
 				<p class="text-neutral-600 text-xs">
-					{completedCount} of {todosQuery.current?.length || 0} completed
+					{completedCount} of {totalCount} completed
 					{#if habitCount > 0}
 						• {habitCount} habit{habitCount === 1 ? "" : "s"} pending
 					{/if}
