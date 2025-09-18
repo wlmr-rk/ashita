@@ -5,8 +5,14 @@
 		updateTodo,
 		deleteTodo,
 	} from "$lib/todos.remote";
+	import { browser } from "$app/environment";
+	import { onMount } from "svelte";
 
 	let newTodoText = $state("");
+
+	// PWA install prompt
+	let deferredPrompt = $state<any>(null);
+	let showInstallPrompt = $state(false);
 
 	let newTodoIsHabit = $state(false);
 	let newTodoDueDate = $state("");
@@ -213,6 +219,42 @@
 		todosQuery.current?.filter((t) => t.isHabit && !t.completed).length ||
 			0,
 	);
+
+	// PWA install functionality
+	onMount(() => {
+		if (browser) {
+			// Listen for the beforeinstallprompt event
+			window.addEventListener("beforeinstallprompt", (e) => {
+				e.preventDefault();
+				deferredPrompt = e;
+				showInstallPrompt = true;
+			});
+
+			// Hide install prompt if already installed
+			window.addEventListener("appinstalled", () => {
+				showInstallPrompt = false;
+				deferredPrompt = null;
+			});
+		}
+	});
+
+	async function handleInstallApp() {
+		if (!deferredPrompt) return;
+
+		deferredPrompt.prompt();
+		const { outcome } = await deferredPrompt.userChoice;
+
+		if (outcome === "accepted") {
+			showInstallPrompt = false;
+		}
+
+		deferredPrompt = null;
+	}
+
+	function dismissInstallPrompt() {
+		showInstallPrompt = false;
+		deferredPrompt = null;
+	}
 </script>
 
 <main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif">
@@ -228,6 +270,49 @@
 				Tap to complete • Swipe left to edit • Swipe right to delete
 			</p>
 		</header>
+
+		<!-- PWA Install Prompt -->
+		{#if showInstallPrompt}
+			<div
+				class="mb-6 p-3 bg-neutral-900 border border-neutral-800 rounded-lg"
+			>
+				<div class="flex items-center justify-between">
+					<div class="flex-1">
+						<p class="text-neutral-200 text-sm font-medium mb-1">
+							Install Tasks
+						</p>
+						<p class="text-neutral-500 text-xs">
+							Add to home screen for quick access
+						</p>
+					</div>
+					<div class="flex items-center space-x-2 ml-3">
+						<button
+							onclick={handleInstallApp}
+							class="px-3 py-1.5 bg-neutral-100 text-neutral-950 text-xs rounded transition-colors duration-200 active:bg-neutral-300"
+						>
+							Install
+						</button>
+						<button
+							onclick={dismissInstallPrompt}
+							class="p-1.5 text-neutral-500 active:text-neutral-300"
+							aria-label="Dismiss"
+						>
+							<svg
+								class="w-3 h-3"
+								fill="currentColor"
+								viewBox="0 0 20 20"
+							>
+								<path
+									fill-rule="evenodd"
+									d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+									clip-rule="evenodd"
+								/>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Add Todo Form -->
 		<section class="mb-8">

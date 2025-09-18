@@ -1,12 +1,49 @@
 <script lang="ts">
 	import '../app.css';
+	import { browser } from '$app/environment';
+	import { onMount } from 'svelte';
+	
 	let { children } = $props();
+
+	// Register service worker
+	onMount(() => {
+		if (browser && 'serviceWorker' in navigator) {
+			navigator.serviceWorker.register('/sw.js')
+				.then((registration) => {
+					console.log('SW registered:', registration);
+				})
+				.catch((error) => {
+					console.log('SW registration failed:', error);
+				});
+		}
+	});
 </script>
 
 <svelte:head>
 	<title>Tasks — Elegant Productivity</title>
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<meta name="description" content="A minimalist task management application" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+	<meta name="description" content="A minimalist task management application with gesture-based interactions" />
+	
+	<!-- PWA Meta Tags -->
+	<meta name="theme-color" content="#0a0a0a" />
+	<meta name="background-color" content="#0a0a0a" />
+	<meta name="display" content="standalone" />
+	<meta name="orientation" content="portrait-primary" />
+	
+	<!-- Apple PWA Meta Tags -->
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+	<meta name="apple-mobile-web-app-title" content="Tasks" />
+	<link rel="apple-touch-icon" href="/icon.svg" />
+	
+	<!-- Manifest -->
+	<link rel="manifest" href="/manifest.json" />
+	
+	<!-- Favicon -->
+	<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+	
+	<!-- Prevent zoom on input focus (iOS) -->
+	<meta name="format-detection" content="telephone=no" />
 </svelte:head>
 
 <svelte:boundary>

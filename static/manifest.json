@@ -1,13 +1,14 @@
 {
-  "name": "Minimalist Todo",
-  "short_name": "Todo",
-  "description": "Ultra minimalistic gesture-heavy todo app",
-  "theme_color": "#000000",
-  "background_color": "#000000",
-  "display": "standalone",
-  "orientation": "portrait-primary",
+  "name": "Tasks - Elegant Productivity",
+  "short_name": "Tasks",
+  "description": "A minimalist task management app with gesture-based interactions",
   "start_url": "/",
-  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "categories": ["productivity", "utilities"],
+  "lang": "en",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -21,8 +22,5 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ],
-  "categories": ["productivity", "utilities"],
-  "lang": "en",
-  "dir": "ltr"
+  ]
 }

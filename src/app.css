@@ -21,4 +21,31 @@ body {
 	background: var(--color-neutral-950);
 	color: var(--color-neutral-100);
 	line-height: 1.6;
+	
+	/* PWA optimizations */
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	user-select: none;
+	overscroll-behavior: none;
+	
+	/* Prevent pull-to-refresh */
+	overscroll-behavior-y: contain;
+}
+
+/* PWA safe area handling */
+@supports (padding: max(0px)) {
+	body {
+		padding-left: max(0px, env(safe-area-inset-left));
+		padding-right: max(0px, env(safe-area-inset-right));
+		padding-bottom: max(0px, env(safe-area-inset-bottom));
+	}
+}
+
+/* Allow text selection for inputs */
+input, textarea {
+	-webkit-user-select: text;
+	user-select: text;
 }

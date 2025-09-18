@@ -1,15 +1,6 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Black background -->
-  <rect width="512" height="512" fill="#000000"/>
-  
-  <!-- White checkmark circle -->
-  <circle cx="256" cy="256" r="180" fill="none" stroke="#FFFFFF" stroke-width="24"/>
-  
-  <!-- Checkmark -->
-  <path d="M200 256L230 286L312 204" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
-  
-  <!-- Three dots representing todo items -->
-  <circle cx="160" cy="160" r="8" fill="#FFFFFF"/>
-  <circle cx="256" cy="160" r="8" fill="#FFFFFF"/>
-  <circle cx="352" cy="160" r="8" fill="#FFFFFF"/>
+  <rect width="512" height="512" rx="128" fill="#0a0a0a"/>
+  <rect x="128" y="128" width="256" height="256" rx="32" fill="none" stroke="#f5f5f5" stroke-width="8"/>
+  <path d="M180 220 L220 260 L340 140" stroke="#f5f5f5" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="400" cy="400" r="8" fill="#737373"/>
 </svg>
