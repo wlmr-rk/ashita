@@ -5,14 +5,8 @@
 		updateTodo,
 		deleteTodo,
 	} from "$lib/todos.remote";
-	import { browser } from "$app/environment";
-	import { onMount } from "svelte";
 
 	let newTodoText = $state("");
-
-	// PWA install prompt
-	let deferredPrompt = $state<any>(null);
-	let showInstallPrompt = $state(false);
 
 	let newTodoIsHabit = $state(false);
 	let newTodoDueDate = $state("");
@@ -110,8 +104,11 @@
 		}
 	}
 
-	// Swipe gesture handlers
+	// Improved swipe gesture handlers for mobile
 	function handleTouchStart(event: TouchEvent, todoId: number) {
+		// Prevent default to avoid conflicts with browser gestures
+		event.preventDefault();
+
 		const touch = event.touches[0];
 		swipeStartX = touch.clientX;
 		swipeStartY = touch.clientY;
@@ -127,8 +124,8 @@
 		const deltaX = touch.clientX - swipeStartX;
 		const deltaY = Math.abs(touch.clientY - swipeStartY);
 
-		// Only handle horizontal swipes
-		if (deltaY > 30) {
+		// If vertical movement is too much, cancel swipe
+		if (deltaY > 50) {
 			resetSwipe();
 			return;
 		}
@@ -136,7 +133,7 @@
 		swipeCurrentX = touch.clientX;
 
 		// Prevent scrolling during horizontal swipe
-		if (Math.abs(deltaX) > 10) {
+		if (Math.abs(deltaX) > 20) {
 			event.preventDefault();
 		}
 	}
@@ -145,7 +142,7 @@
 		if (!isSwipeActive || swipeItemId !== todo.id) return;
 
 		const deltaX = swipeCurrentX - swipeStartX;
-		const threshold = 80;
+		const threshold = 60; // Reduced threshold for easier swiping
 
 		if (Math.abs(deltaX) > threshold) {
 			if (deltaX < 0) {
@@ -219,103 +216,12 @@
 		todosQuery.current?.filter((t) => t.isHabit && !t.completed).length ||
 			0,
 	);
-
-	// PWA install functionality
-	onMount(() => {
-		if (browser) {
-			// Listen for the beforeinstallprompt event
-			window.addEventListener("beforeinstallprompt", (e) => {
-				e.preventDefault();
-				deferredPrompt = e;
-				showInstallPrompt = true;
-			});
-
-			// Hide install prompt if already installed
-			window.addEventListener("appinstalled", () => {
-				showInstallPrompt = false;
-				deferredPrompt = null;
-			});
-		}
-	});
-
-	async function handleInstallApp() {
-		if (!deferredPrompt) return;
-
-		deferredPrompt.prompt();
-		const { outcome } = await deferredPrompt.userChoice;
-
-		if (outcome === "accepted") {
-			showInstallPrompt = false;
-		}
-
-		deferredPrompt = null;
-	}
-
-	function dismissInstallPrompt() {
-		showInstallPrompt = false;
-		deferredPrompt = null;
-	}
 </script>
 
 <main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif">
-	<div class="max-w-md mx-auto px-4 py-8">
-		<!-- Header -->
-		<header class="mb-8 text-center">
-			<h1
-				class="text-3xl font-semibold tracking-tight text-neutral-50 mb-1"
-			>
-				Tasks
-			</h1>
-			<p class="text-neutral-500 text-sm">
-				Tap to complete • Swipe left to edit • Swipe right to delete
-			</p>
-		</header>
-
-		<!-- PWA Install Prompt -->
-		{#if showInstallPrompt}
-			<div
-				class="mb-6 p-3 bg-neutral-900 border border-neutral-800 rounded-lg"
-			>
-				<div class="flex items-center justify-between">
-					<div class="flex-1">
-						<p class="text-neutral-200 text-sm font-medium mb-1">
-							Install Tasks
-						</p>
-						<p class="text-neutral-500 text-xs">
-							Add to home screen for quick access
-						</p>
-					</div>
-					<div class="flex items-center space-x-2 ml-3">
-						<button
-							onclick={handleInstallApp}
-							class="px-3 py-1.5 bg-neutral-100 text-neutral-950 text-xs rounded transition-colors duration-200 active:bg-neutral-300"
-						>
-							Install
-						</button>
-						<button
-							onclick={dismissInstallPrompt}
-							class="p-1.5 text-neutral-500 active:text-neutral-300"
-							aria-label="Dismiss"
-						>
-							<svg
-								class="w-3 h-3"
-								fill="currentColor"
-								viewBox="0 0 20 20"
-							>
-								<path
-									fill-rule="evenodd"
-									d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-									clip-rule="evenodd"
-								/>
-							</svg>
-						</button>
-					</div>
-				</div>
-			</div>
-		{/if}
-
+	<div class="max-w-md mx-auto px-4 py-4">
 		<!-- Add Todo Form -->
-		<section class="mb-8">
+		<section class="mb-6">
 			<div class="space-y-3">
 				<input
 					bind:value={newTodoText}
@@ -386,11 +292,12 @@
 			{:else}
 				{#each sortedTodos() as todo (todo.id)}
 					<article
-						class="relative overflow-hidden border-b border-neutral-900 transition-all duration-200"
+						class="relative overflow-hidden border-b border-neutral-900 transition-all duration-200 touch-manipulation"
 						class:opacity-60={todo.completed}
 						ontouchstart={(e) => handleTouchStart(e, todo.id)}
-						ontouchmove={handleTouchMove}
+						ontouchmove={(e) => handleTouchMove(e)}
 						ontouchend={(e) => handleTouchEnd(e, todo)}
+						style="touch-action: pan-y;"
 					>
 						{#if editingId === todo.id}
 							<!-- Edit Mode -->

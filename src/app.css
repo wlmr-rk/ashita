@@ -49,3 +49,9 @@ input, textarea {
 	-webkit-user-select: text;
 	user-select: text;
 }
+
+/* Improve touch handling for swipe gestures */
+.touch-manipulation {
+	touch-action: pan-y;
+	-webkit-touch-callout: none;
+}
