@@ -19,6 +19,9 @@
 	let optimisticTodos = $state<any[]>([]);
 	let nextOptimisticId = $state(-1); // Use negative IDs for optimistic items
 
+	// Modal state
+	let showAddModal = $state(false);
+
 	// Swipe state with animation
 	let swipeStartX = $state(0);
 	let swipeStartY = $state(0);
@@ -52,10 +55,11 @@
 			dueDate: newTodoDueDate || undefined,
 		};
 
-		// Reset form immediately for better UX
+		// Reset form and close modal immediately for better UX
 		newTodoText = "";
 		newTodoIsHabit = false;
 		newTodoDueDate = "";
+		closeAddModal();
 
 		try {
 			// Send to server in background
@@ -184,6 +188,26 @@
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === "Enter") {
+			handleAddTodo();
+		}
+	}
+
+	function openAddModal() {
+		showAddModal = true;
+		// Reset form
+		newTodoText = "";
+		newTodoIsHabit = false;
+		newTodoDueDate = "";
+	}
+
+	function closeAddModal() {
+		showAddModal = false;
+	}
+
+	function handleModalKeydown(event: KeyboardEvent) {
+		if (event.key === "Escape") {
+			closeAddModal();
+		} else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
 			handleAddTodo();
 		}
 	}
@@ -381,58 +405,8 @@
 	});
 </script>
 
-<main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif">
-	<div class="max-w-md mx-auto px-4 py-4">
-		<!-- Add Todo Form -->
-		<section class="mb-6">
-			<div class="space-y-3">
-				<input
-					bind:value={newTodoText}
-					onkeydown={handleKeydown}
-					placeholder="Add a task..."
-					class="w-full bg-transparent border-b border-neutral-800 pb-3 text-lg text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-600 focus:outline-none transition-colors duration-300"
-				/>
-
-				<!-- Always visible options -->
-				<div class="flex items-center justify-between">
-					<div class="flex items-center space-x-3">
-						<!-- Habit Toggle Button -->
-						<button
-							onclick={() => (newTodoIsHabit = !newTodoIsHabit)}
-							class="px-2 py-1 text-xs rounded transition-all duration-200"
-							class:bg-neutral-100={newTodoIsHabit}
-							class:text-neutral-950={newTodoIsHabit}
-							class:border-neutral-100={newTodoIsHabit}
-							class:bg-transparent={!newTodoIsHabit}
-							class:text-neutral-500={!newTodoIsHabit}
-							class:border-neutral-700={!newTodoIsHabit}
-							style="border: 1px solid;"
-						>
-							毎日
-						</button>
-
-						<!-- Due Date -->
-						<input
-							type="date"
-							bind:value={newTodoDueDate}
-							placeholder="Due date"
-							class="bg-transparent border border-neutral-800 rounded px-2 py-1 text-xs text-neutral-400 focus:border-neutral-600 focus:outline-none"
-						/>
-					</div>
-
-					<!-- Add Button -->
-					{#if newTodoText.trim()}
-						<button
-							onclick={handleAddTodo}
-							class="text-neutral-400 text-xs uppercase tracking-wider transition-colors duration-200 active:text-neutral-200"
-						>
-							Add
-						</button>
-					{/if}
-				</div>
-			</div>
-		</section>
-
+<main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif pb-20">
+	<div class="max-w-md mx-auto px-4 py-6">
 		<!-- Todo List -->
 		<section class="space-y-0">
 			{#if todosQuery.loading}
@@ -643,4 +617,135 @@
 			</footer>
 		{/if}
 	</div>
+
+	<!-- Bottom Navigation -->
+	<nav
+		class="fixed bottom-0 left-0 right-0 bg-neutral-950 border-t border-neutral-900"
+	>
+		<div class="max-w-md mx-auto px-4 py-3 flex justify-center">
+			<button
+				onclick={openAddModal}
+				class="w-14 h-14 bg-neutral-100 text-neutral-950 rounded-full flex items-center justify-center transition-all duration-200 active:scale-95 active:bg-neutral-300"
+				aria-label="Add new task"
+			>
+				<svg
+					class="w-6 h-6"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M12 4v16m8-8H4"
+					/>
+				</svg>
+			</button>
+		</div>
+	</nav>
+
+	<!-- Add Task Modal -->
+	{#if showAddModal}
+		<div
+			class="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 modal-backdrop"
+			onclick={closeAddModal}
+		>
+			<div
+				class="bg-neutral-900 rounded-t-3xl w-full max-w-md mx-auto p-6 modal-content"
+				onclick={(e) => e.stopPropagation()}
+				onkeydown={handleModalKeydown}
+			>
+				<!-- Modal Header -->
+				<div class="flex items-center justify-between mb-6">
+					<h2 class="text-xl font-semibold text-neutral-100">
+						New Task
+					</h2>
+					<button
+						onclick={closeAddModal}
+						class="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-neutral-300 transition-colors duration-200"
+						aria-label="Close"
+					>
+						<svg
+							class="w-5 h-5"
+							fill="currentColor"
+							viewBox="0 0 20 20"
+						>
+							<path
+								fill-rule="evenodd"
+								d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+								clip-rule="evenodd"
+							/>
+						</svg>
+					</button>
+				</div>
+
+				<!-- Task Input -->
+				<div class="space-y-4">
+					<div>
+						<input
+							bind:value={newTodoText}
+							onkeydown={handleKeydown}
+							placeholder="What needs to be done?"
+							class="w-full bg-transparent border-b border-neutral-700 pb-3 text-lg text-neutral-100 placeholder:text-neutral-500 focus:border-neutral-500 focus:outline-none transition-colors duration-300"
+							autofocus
+						/>
+					</div>
+
+					<!-- Options -->
+					<div class="space-y-4">
+						<!-- Habit Toggle -->
+						<div class="flex items-center justify-between">
+							<span class="text-neutral-300 text-sm"
+								>Daily habit</span
+							>
+							<button
+								onclick={() =>
+									(newTodoIsHabit = !newTodoIsHabit)}
+								class="px-3 py-1.5 text-sm rounded-full transition-all duration-200"
+								class:bg-neutral-100={newTodoIsHabit}
+								class:text-neutral-950={newTodoIsHabit}
+								class:border-neutral-100={newTodoIsHabit}
+								class:bg-transparent={!newTodoIsHabit}
+								class:text-neutral-400={!newTodoIsHabit}
+								class:border-neutral-700={!newTodoIsHabit}
+								style="border: 1px solid;"
+							>
+								毎日
+							</button>
+						</div>
+
+						<!-- Due Date -->
+						<div class="flex items-center justify-between">
+							<span class="text-neutral-300 text-sm"
+								>Due date</span
+							>
+							<input
+								type="date"
+								bind:value={newTodoDueDate}
+								class="bg-transparent border border-neutral-700 rounded-lg px-3 py-2 text-sm text-neutral-300 focus:border-neutral-500 focus:outline-none"
+							/>
+						</div>
+					</div>
+
+					<!-- Action Buttons -->
+					<div class="flex space-x-3 pt-4">
+						<button
+							onclick={closeAddModal}
+							class="flex-1 py-3 text-neutral-400 text-sm font-medium transition-colors duration-200 active:text-neutral-200"
+						>
+							Cancel
+						</button>
+						<button
+							onclick={handleAddTodo}
+							disabled={!newTodoText.trim()}
+							class="flex-1 py-3 bg-neutral-100 text-neutral-950 text-sm font-medium rounded-lg transition-all duration-200 active:bg-neutral-300 disabled:opacity-50 disabled:cursor-not-allowed"
+						>
+							Add Task
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 </main>

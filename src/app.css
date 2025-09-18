@@ -55,3 +55,39 @@ input, textarea {
 	touch-action: pan-y;
 	-webkit-touch-callout: none;
 }
+
+/* Modal animations */
+@keyframes slideUp {
+	from {
+		transform: translateY(100%);
+		opacity: 0;
+	}
+	to {
+		transform: translateY(0);
+		opacity: 1;
+	}
+}
+
+@keyframes fadeIn {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+.modal-backdrop {
+	animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+	animation: slideUp 0.3s ease-out;
+}
+
+/* Bottom navigation safe area */
+@supports (padding: max(0px)) {
+	nav {
+		padding-bottom: max(0px, env(safe-area-inset-bottom));
+	}
+}
