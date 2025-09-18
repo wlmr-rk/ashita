@@ -35,13 +35,33 @@ body {
 	overscroll-behavior-y: contain;
 }
 
-/* PWA safe area handling */
+/* PWA fullscreen safe area handling */
 @supports (padding: max(0px)) {
 	body {
 		padding-left: max(0px, env(safe-area-inset-left));
 		padding-right: max(0px, env(safe-area-inset-right));
+		padding-top: max(0px, env(safe-area-inset-top));
 		padding-bottom: max(0px, env(safe-area-inset-bottom));
 	}
+}
+
+/* Fullscreen PWA optimizations */
+html, body {
+	height: 100vh;
+	height: 100dvh; /* Dynamic viewport height for mobile */
+	overflow-x: hidden;
+}
+
+/* Handle status bar overlay in fullscreen mode */
+@media (display-mode: fullscreen) {
+	body {
+		padding-top: max(24px, env(safe-area-inset-top));
+	}
+}
+
+/* Safe area utilities */
+.pt-safe {
+	padding-top: max(8px, env(safe-area-inset-top));
 }
 
 /* Allow text selection for inputs */
@@ -129,23 +149,7 @@ input, textarea {
 		inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Hover depth transitions */
-.hover\:depth-2:hover {
-	box-shadow: 
-		0 4px 6px rgba(0, 0, 0, 0.5), 
-		0 2px 4px rgba(0, 0, 0, 0.4),
-		inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-	transition: box-shadow 0.2s ease-out;
-}
 
-.hover\:depth-5:hover {
-	box-shadow: 
-		0 25px 50px rgba(0, 0, 0, 0.8), 
-		0 12px 24px rgba(0, 0, 0, 0.6),
-		0 6px 12px rgba(0, 0, 0, 0.4),
-		inset 0 1px 0 rgba(255, 255, 255, 0.1);
-	transition: box-shadow 0.2s ease-out;
-}
 
 /* Focus depth for inputs */
 .focus\:depth-1:focus {

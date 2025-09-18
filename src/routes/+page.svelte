@@ -405,8 +405,8 @@
 	});
 </script>
 
-<main class="min-h-screen bg-neutral-950 text-neutral-100 font-serif pb-24">
-	<div class="max-w-md mx-auto px-6 py-8">
+<main class="min-h-screen min-h-[100dvh] bg-neutral-950 text-neutral-100 font-serif pb-24">
+	<div class="max-w-md mx-auto px-6 py-8 pt-safe">
 		<!-- Todo List -->
 		<section class="space-y-2">
 			{#if todosQuery.loading}
@@ -421,7 +421,7 @@
 					<p class="text-red-400 text-sm mb-3">Failed to load</p>
 					<button
 						onclick={() => todosQuery.refresh()}
-						class="text-neutral-500 text-xs underline active:text-neutral-300 hover:text-neutral-400 transition-colors duration-200"
+						class="text-neutral-500 text-xs underline active:text-neutral-300 transition-colors duration-200"
 					>
 						Try again
 					</button>
@@ -537,7 +537,7 @@
 						{:else}
 							<!-- View Mode - Tap to toggle -->
 							<button
-								class="w-full p-4 text-left active:bg-neutral-900 transition-colors duration-150 hover:depth-2"
+								class="w-full p-4 text-left active:bg-neutral-900 transition-colors duration-150 min-h-[72px] flex items-center"
 								onclick={() =>
 									handleToggleTodo(todo.id, todo.completed)}
 								style="transform: {getSwipeTransform(
@@ -547,47 +547,34 @@
 									? 'none'
 									: 'transform 0.2s ease-out'};"
 							>
-								<div class="flex items-start justify-between">
-									<div class="flex-1 min-w-0">
-										<p
-											class="text-base text-neutral-200 leading-relaxed transition-colors duration-200"
-											class:line-through={todo.completed}
-											class:text-neutral-500={todo.completed}
-										>
-											{todo.text}
-										</p>
+								<div class="flex-1 min-w-0">
+									<p
+										class="text-base text-neutral-200 leading-relaxed transition-colors duration-200"
+										class:line-through={todo.completed}
+										class:text-neutral-500={todo.completed}
+									>
+										{todo.text}
+									</p>
 
-										<!-- Metadata -->
-										{#if todo.isHabit || todo.dueDate}
-											<div
-												class="flex items-center mt-1 space-x-2"
+									<!-- Metadata - Always reserve space -->
+									<div class="flex items-center mt-2 space-x-2 min-h-[20px]">
+										{#if todo.isHabit}
+											<span
+												class="text-xs text-neutral-600 bg-neutral-900 px-1.5 py-0.5 rounded"
 											>
-												{#if todo.isHabit}
-													<span
-														class="text-xs text-neutral-600 bg-neutral-900 px-1.5 py-0.5 rounded"
-													>
-														毎日
-													</span>
-												{/if}
-												{#if todo.dueDate}
-													<span
-														class="text-xs text-neutral-600"
-													>
-														{formatDueDate(
-															todo.dueDate,
-														)}
-													</span>
-												{/if}
-											</div>
+												毎日
+											</span>
+										{/if}
+										{#if todo.dueDate}
+											<span
+												class="text-xs text-neutral-600"
+											>
+												{formatDueDate(
+													todo.dueDate,
+												)}
+											</span>
 										{/if}
 									</div>
-
-									<!-- Visual indicator for habits -->
-									{#if todo.isHabit}
-										<div
-											class="w-2 h-2 bg-neutral-700 rounded-full mt-2 ml-3 flex-shrink-0"
-										></div>
-									{/if}
 								</div>
 							</button>
 						{/if}
@@ -603,7 +590,7 @@
 
 		<!-- Footer Stats -->
 		{#if totalCount() > 0}
-			<footer class="mt-12 pt-6 border-t border-neutral-900 text-center">
+			<footer class="mt-12 text-center">
 				<div class="bg-neutral-900 rounded-xl px-4 py-3 inline-block depth-1">
 					<p class="text-neutral-500 text-sm">
 						{completedCount()} of {totalCount()} completed
@@ -623,7 +610,7 @@
 		<div class="max-w-md mx-auto px-4 py-6 flex justify-center">
 			<button
 				onclick={openAddModal}
-				class="w-16 h-16 bg-neutral-100 text-neutral-950 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 depth-4 hover:depth-5"
+				class="w-16 h-16 bg-neutral-100 text-neutral-950 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 depth-4"
 				aria-label="Add new task"
 			>
 				<svg
